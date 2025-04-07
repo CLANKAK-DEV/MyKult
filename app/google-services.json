@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "256080357991",
+    "project_id": "mykultv",
+    "storage_bucket": "mykultv.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:256080357991:android:b8c7e2dea163b2a97102c2",
+        "android_client_info": {
+          "package_name": "com.example.mykultv2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAusFmj5HLg3OVIET9aOuwM1RXIcHkbn34"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
