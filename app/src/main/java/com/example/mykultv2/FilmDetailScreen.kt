@@ -199,7 +199,13 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                 ) {
                     items(movieDetails?.credits?.cast?.take(5) ?: emptyList()) { actor ->
                         Column(
-                            modifier = Modifier.padding(8.dp),
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .clickable {
+                                    actor.id?.let { actorId ->
+                                        navController.navigate("actorProfile/$actorId")
+                                    }
+                                },
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             SubcomposeAsyncImage(
@@ -403,6 +409,7 @@ data class Credits(
 
 @Serializable
 data class CastMember(
+    val id: Int? = null, // Added id field for navigation
     val name: String,
     val profile_path: String? = null
 )

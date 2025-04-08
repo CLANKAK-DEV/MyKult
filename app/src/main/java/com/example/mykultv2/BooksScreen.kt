@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -29,21 +29,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.compose.AsyncImagePainter
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import java.net.URL
 
 @Composable
-fun BooksScreen() {
+fun BooksScreen(navController: NavHostController) {
     var books by remember { mutableStateOf<List<Book>>(emptyList()) }
     var booksError by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -76,6 +75,7 @@ fun BooksScreen() {
             val items = jsonObject["items"]?.jsonArray ?: return emptyList()
 
             items.mapNotNull { item ->
+                val id = item.jsonObject["id"]?.toString()?.trim('"') ?: return@mapNotNull null // Get the book ID
                 val volumeInfo = item.jsonObject["volumeInfo"]?.jsonObject ?: return@mapNotNull null
                 val title = volumeInfo["title"]?.toString()?.trim('"') ?: return@mapNotNull null // Skip if title is null
                 val authors = volumeInfo["authors"]?.jsonArray?.joinToString(", ") { it.toString().trim('"') } ?: "Unknown Author"
@@ -84,6 +84,7 @@ fun BooksScreen() {
                 val publishedDate = volumeInfo["publishedDate"]?.toString()?.trim('"') ?: "N/A"
 
                 Book(
+                    id = id,
                     title = title,
                     author = authors,
                     imageUrl = thumbnail,
@@ -218,7 +219,10 @@ fun BooksScreen() {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(250.dp),
+                        .height(250.dp)
+                        .clickable {
+                            navController.navigate("bookDetail/${book.id}")
+                        },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -313,24 +317,5 @@ fun BooksScreen() {
             }
         }
     }
-}
-
-@Composable
-fun CategoryChip(
-    category: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(category) },
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = Color(0xFF4A00E0),
-            selectedLabelColor = Color.White,
-            containerColor = Color(0xFFE0E0E0),
-            labelColor = Color.Black
-        )
-    )
 }
 

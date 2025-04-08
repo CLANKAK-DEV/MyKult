@@ -64,12 +64,33 @@ fun MainScreen(navController: NavHostController, modifier: Modifier = Modifier) 
     ) {
         NavHost(navController = navController, startDestination = "Home") {
             composable("Home") { HomeScreen(navController) }
-            composable("Films") { FilmsScreen(navController) }  // Pass navController
-            composable("Livres") { BooksScreen() }
-            composable("Musique") { MusiqueScreen() }
+            composable("Films") { FilmsScreen(navController) }
+            composable("Livres") { BooksScreen(navController) }
+
+            composable("Musique") { MusiqueScreen(navController) } // Pass navController
             composable("filmDetail/{filmId}") { backStackEntry ->
                 val filmId = backStackEntry.arguments?.getString("filmId") ?: ""
                 FilmDetailScreen(navController, filmId)
+            }
+            composable("bookDetail/{bookId}") { backStackEntry ->
+                val bookId = backStackEntry.arguments?.getString("bookId") ?: ""
+                BookDetailScreen(navController, bookId)
+            }
+            composable("musicDetail/{musicId}") { backStackEntry ->
+                val musicId = backStackEntry.arguments?.getString("musicId") ?: ""
+                MusicDetailScreen(navController, musicId)
+            }
+            composable("artistProfile/{artistId}") { backStackEntry ->
+                val artistId = backStackEntry.arguments?.getString("artistId") ?: ""
+                ArtistProfileScreen(navController, artistId)
+            }
+            composable("authorProfile/{authorName}") { backStackEntry ->
+                val authorName = backStackEntry.arguments?.getString("authorName") ?: ""
+                AuthorProfileScreen(navController, authorName)
+            }
+            composable("actorProfile/{actorId}") { backStackEntry ->
+                val actorId = backStackEntry.arguments?.getString("actorId") ?: ""
+                ActorProfileScreen(navController, actorId)
             }
         }
     }

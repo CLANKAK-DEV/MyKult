@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.compose.AsyncImagePainter
@@ -35,13 +37,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import java.net.URL
-import java.net.URLEncoder
 
 @Composable
-fun MusiqueScreen() {
+fun MusiqueScreen(navController: NavHostController) {
     var tracks by remember { mutableStateOf<List<Music1>>(emptyList()) }
     var tracksError by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -90,6 +91,7 @@ fun MusiqueScreen() {
             val items = jsonObject["results"]?.jsonArray ?: return emptyList()
 
             val fetchedTracks = items.mapNotNull { item ->
+                val id = item.jsonObject["trackId"]?.toString() ?: return@mapNotNull null // Get the track ID
                 val title = item.jsonObject["trackName"]?.toString()?.trim('"') ?: return@mapNotNull null
                 val artist = item.jsonObject["artistName"]?.toString()?.trim('"') ?: "Unknown Artist"
                 val cover = item.jsonObject["artworkUrl100"]?.toString()?.trim('"')?.replace("100x100", "300x300") ?: "https://via.placeholder.com/80"
@@ -97,6 +99,7 @@ fun MusiqueScreen() {
 
                 Log.d("MusiqueScreen", "Track: $title, Artist: $artist, Image URL: $cover") // Log each track's image URL
                 Music1(
+                    id = id,
                     trackName = title,
                     artistName = artist,
                     imageUrl = cover,
@@ -242,7 +245,10 @@ fun MusiqueScreen() {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(250.dp),
+                        .height(250.dp)
+                        .clickable {
+                            navController.navigate("musicDetail/${track.id}")
+                        },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -360,6 +366,7 @@ data class GenreResponse1(val data: List<Genre>)
 
 @Serializable
 data class Music1(
+    val id: String, // Updated to include id
     val trackName: String,
     val artistName: String,
     val imageUrl: String,

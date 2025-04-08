@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -26,6 +27,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import java.net.URL
 
 @Composable
@@ -54,15 +57,24 @@ fun HomeScreen(navController: NavHostController) {
             val booksJson = withContext(Dispatchers.IO) {
                 URL("https://www.googleapis.com/books/v1/volumes?q=bestsellers&maxResults=5&langRestrict=fr").readText()
             }
-            val booksResponse = json.decodeFromString<GoogleBooksResponse>(booksJson)
-            popularBooks = booksResponse.items.mapNotNull { item ->
-                // Skip books with null titles
-                if (item.volumeInfo.title == null) return@mapNotNull null
+            val jsonObject = Json.parseToJsonElement(booksJson).jsonObject
+            val items = jsonObject["items"]?.jsonArray ?: emptyList()
+
+            popularBooks = items.mapNotNull { item ->
+                val id = item.jsonObject["id"]?.toString()?.trim('"') ?: return@mapNotNull null // Get the book ID
+                val volumeInfo = item.jsonObject["volumeInfo"]?.jsonObject ?: return@mapNotNull null
+                val title = volumeInfo["title"]?.toString()?.trim('"') ?: return@mapNotNull null // Skip if title is null
+                val authors = volumeInfo["authors"]?.jsonArray?.joinToString(", ") { it.toString().trim('"') } ?: "Unknown Author"
+                val imageLinks = volumeInfo["imageLinks"]?.jsonObject
+                val thumbnail = imageLinks?.get("thumbnail")?.toString()?.trim('"')?.replace("http://", "https://") ?: ""
+                val publishedDate = volumeInfo["publishedDate"]?.toString()?.trim('"') ?: "N/A"
+
                 Book(
-                    title = item.volumeInfo.title,
-                    author = item.volumeInfo.authors?.joinToString(", ") ?: "Unknown Author",
-                    imageUrl = item.volumeInfo.imageLinks?.thumbnail?.replace("http://", "https://") ?: "",
-                    publishedDate = item.volumeInfo.publishedDate ?: "N/A"
+                    id = id,
+                    title = title,
+                    author = authors,
+                    imageUrl = thumbnail,
+                    publishedDate = publishedDate
                 )
             }
         } catch (e: Exception) {
@@ -71,15 +83,24 @@ fun HomeScreen(navController: NavHostController) {
 
         try {
             val musicJson = withContext(Dispatchers.IO) {
-                URL("https://api.deezer.com/chart/0/tracks?limit=5").readText()
+                URL("https://itunes.apple.com/search?term=music&entity=song&limit=5").readText()
             }
-            val musicResponse = json.decodeFromString<DeezerChartResponse>(musicJson)
-            popularMusic = musicResponse.data.map { track ->
+            val jsonObject = Json.parseToJsonElement(musicJson).jsonObject
+            val items = jsonObject["results"]?.jsonArray ?: return@LaunchedEffect
+
+            popularMusic = items.mapNotNull { item ->
+                val id = item.jsonObject["trackId"]?.toString() ?: return@mapNotNull null // Get the track ID
+                val title = item.jsonObject["trackName"]?.toString()?.trim('"') ?: return@mapNotNull null
+                val artist = item.jsonObject["artistName"]?.toString()?.trim('"') ?: "Unknown Artist"
+                val cover = item.jsonObject["artworkUrl100"]?.toString()?.trim('"')?.replace("100x100", "300x300") ?: "https://via.placeholder.com/80"
+                val releaseDate = item.jsonObject["releaseDate"]?.toString()?.trim('"')?.split("T")?.get(0) ?: "N/A"
+
                 Music(
-                    trackName = track.title,
-                    artistName = track.artist.name,
-                    imageUrl = track.album.cover_medium ?: "https://via.placeholder.com/80",
-                    releaseDate = track.release_date ?: "N/A" // Map release_date to releaseDate
+                    id = id,
+                    trackName = title,
+                    artistName = artist,
+                    imageUrl = cover,
+                    releaseDate = releaseDate
                 )
             }
         } catch (e: Exception) {
@@ -142,14 +163,12 @@ fun HomeScreen(navController: NavHostController) {
                 }
             }
         } else {
-            // In HomeScreen, inside the LazyRow for movies
             item {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(popularMovies.size) { index ->
-                        val movie = popularMovies[index]
+                    items(popularMovies) { movie ->
                         Card(
                             modifier = Modifier
                                 .width(150.dp)
@@ -160,7 +179,6 @@ fun HomeScreen(navController: NavHostController) {
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {
-                            // Rest of your Card content remains the same
                             Column(modifier = Modifier.padding(8.dp)) {
                                 SubcomposeAsyncImage(
                                     model = if (movie.poster_path != null) "https://image.tmdb.org/t/p/w200${movie.poster_path}" else null,
@@ -226,10 +244,13 @@ fun HomeScreen(navController: NavHostController) {
         } else {
             item {
                 LazyRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(popularBooks.size) { index ->
-                        val book = popularBooks[index]
+                    items(popularBooks) { book ->
                         Card(
-                            modifier = Modifier.width(150.dp),
+                            modifier = Modifier
+                                .width(150.dp)
+                                .clickable {
+                                    navController.navigate("bookDetail/${book.id}")
+                                },
                             shape = RoundedCornerShape(8.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -304,10 +325,13 @@ fun HomeScreen(navController: NavHostController) {
         } else {
             item {
                 LazyRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(popularMusic.size) { index ->
-                        val music = popularMusic[index]
+                    items(popularMusic) { music ->
                         Card(
-                            modifier = Modifier.width(150.dp),
+                            modifier = Modifier
+                                .width(150.dp)
+                                .clickable {
+                                    navController.navigate("musicDetail/${music.id}")
+                                },
                             shape = RoundedCornerShape(8.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -352,7 +376,7 @@ data class TMDbResponse(val results: List<Movie>)
 
 @Serializable
 data class Movie(
-    val id: Int, // Add this field
+    val id: Int,
     val title: String,
     val release_date: String,
     val poster_path: String? = null
@@ -365,11 +389,25 @@ data class GoogleBooksResponse(val items: List<BookItem>)
 data class BookItem(val volumeInfo: VolumeInfo)
 
 @Serializable
+data class Book(
+    val id: String,
+    val title: String,
+    val author: String,
+    val imageUrl: String,
+    val publishedDate: String
+)
+
+@Serializable
 data class VolumeInfo(
-    val title: String?, // Made nullable to handle missing titles
+    val title: String? = null,
     val authors: List<String>? = null,
+    val publisher: String? = null,
+    val publishedDate: String? = null,
+    val description: String? = null,
+    val pageCount: Int? = null,
     val imageLinks: ImageLinks? = null,
-    val publishedDate: String? = null
+    val previewLink: String? = null,
+    val infoLink: String? = null
 )
 
 @Serializable
@@ -378,40 +416,10 @@ data class ImageLinks(
 )
 
 @Serializable
-data class Book(
-    val title: String,
-    val author: String,
-    val imageUrl: String,
-    val publishedDate: String
-)
-
-@Serializable
-data class DeezerChartResponse(val data: List<DeezerTrack>)
-
-@Serializable
-data class DeezerTrack(
-    val title: String,
-    val artist: DeezerArtist,
-    val album: DeezerAlbum,
-    val release_date: String? = null // Added to match the API field
-)
-
-@Serializable
-data class DeezerArtist(
-    val name: String
-)
-
-@Serializable
-data class DeezerAlbum(
-    val cover_medium: String? = null
-)
-
-
-
-@Serializable
 data class Music(
+    val id: String,
     val trackName: String,
     val artistName: String,
     val imageUrl: String,
-    val releaseDate: String // Added to match the parsing logic
+    val releaseDate: String
 )
