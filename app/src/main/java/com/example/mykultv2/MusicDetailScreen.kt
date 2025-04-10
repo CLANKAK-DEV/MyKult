@@ -1,9 +1,9 @@
 package com.example.mykultv2
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,12 +13,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -47,8 +51,8 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var isFavorited by remember { mutableStateOf(false) }
 
-    // Fetch track details
     LaunchedEffect(musicId) {
         scope.launch {
             try {
@@ -57,15 +61,26 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
                 }
                 val response = json.decodeFromString<iTunesResponse>(detailsJson)
                 musicDetails = response.results.firstOrNull()
+
+                musicDetails?.let { details ->
+                    val music = Music(
+                        id = details.trackId?.toString() ?: "",
+                        trackName = details.trackName ?: "Unknown Track",
+                        artistName = details.artistName,
+                        imageUrl = details.artworkUrl100?.replace("100x100", "300x300") ?: "",
+                        releaseDate = details.releaseDate?.split("T")?.get(0) ?: "N/A"
+                    )
+                    RecentlyWatchedManager.addRecentlyWatchedMusic(music)
+                    isFavorited = FavoritesManager.isMusicFavorited(music)
+                }
             } catch (e: Exception) {
-                error = "Erreur lors du chargement des détails: ${e.message}"
+                error = "Error loading details: ${e.message}"
             } finally {
                 isLoading = false
             }
         }
     }
 
-    // Fetch artist details and albums using artistId
     LaunchedEffect(musicDetails) {
         musicDetails?.artistId?.let { artistId ->
             scope.launch {
@@ -74,11 +89,10 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
                         URL("https://itunes.apple.com/lookup?id=$artistId&entity=album&limit=5").readText()
                     }
                     val response = json.decodeFromString<ArtistResponse>(artistJson)
-                    // The first result should be the artist, followed by albums
                     artistDetails = response.results.firstOrNull { it.wrapperType == "artist" }
                     artistAlbums = response.results.filter { it.wrapperType == "collection" }.take(5)
                 } catch (e: Exception) {
-                    error = "Erreur lors du chargement du profil de l'artiste: ${e.message}"
+                    error = "Error loading artist profile: ${e.message}"
                 }
             }
         }
@@ -87,29 +101,71 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .background(MaterialTheme.colorScheme.background),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Top Bar with Back Icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                    contentDescription = "Retour",
+                    contentDescription = "Back",
                     modifier = Modifier
                         .size(32.dp)
-                        .clickable { navController.popBackStack() }
+                        .clickable { navController.popBackStack() },
+                    tint = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.width(16.dp))
+
                 Text(
-                    text = "Détails de la Musique",
+                    text = "Music Details",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
+
+                Row {
+                    Icon(
+                        imageVector = if (isFavorited) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Favorite",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable {
+                                musicDetails?.let { details ->
+                                    val music = Music(
+                                        id = details.trackId?.toString() ?: "",
+                                        trackName = details.trackName ?: "Unknown Track",
+                                        artistName = details.artistName,
+                                        imageUrl = details.artworkUrl100?.replace("100x100", "300x300") ?: "",
+                                        releaseDate = details.releaseDate?.split("T")?.get(0) ?: "N/A"
+                                    )
+                                    scope.launch {
+                                        FavoritesManager.toggleFavoriteMusic(music)
+                                        isFavorited = FavoritesManager.isMusicFavorited(music)
+                                    }
+                                }
+                            },
+                        tint = if (isFavorited) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable {
+                                musicDetails?.let { details ->
+                                    shareMusic(context, details.trackName ?: "Unknown Track", details.trackId?.toString() ?: "")
+                                }
+                            },
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
         }
 
@@ -117,7 +173,7 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
             when {
                 isLoading -> {
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 error != null -> {
@@ -126,26 +182,25 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = error ?: "Erreur inconnue",
-                            color = Color.Red
+                            text = error ?: "Unknown error",
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
                 musicDetails != null -> {
-                    // Cover Image
                     SubcomposeAsyncImage(
                         model = musicDetails?.artworkUrl100?.replace("100x100", "300x300"),
-                        contentDescription = "Image de ${musicDetails?.trackName}",
+                        contentDescription = "Artwork of ${musicDetails?.trackName}",
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(300.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color.Gray),
+                            .background(MaterialTheme.colorScheme.secondary),
                         contentScale = ContentScale.Crop
                     ) {
                         when (painter.state) {
-                            is AsyncImagePainter.State.Loading -> CircularProgressIndicator()
-                            is AsyncImagePainter.State.Error -> Text("Erreur de chargement de l'image")
+                            is AsyncImagePainter.State.Loading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            is AsyncImagePainter.State.Error -> Text("Error loading image", color = MaterialTheme.colorScheme.onSecondary)
                             else -> SubcomposeAsyncImageContent()
                         }
                     }
@@ -155,7 +210,6 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
 
         if (musicDetails != null) {
             item {
-                // Track Name
                 Text(
                     text = musicDetails?.trackName ?: "",
                     fontSize = 24.sp,
@@ -165,9 +219,8 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
             }
 
             item {
-                // Artist
                 Text(
-                    text = "Artiste",
+                    text = "Artist",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -181,7 +234,6 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
             }
 
             item {
-                // Album and Release Date
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -192,7 +244,7 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                     )
                     Text(
-                        text = "Sortie: ${musicDetails?.releaseDate?.split("T")?.get(0) ?: "N/A"}",
+                        text = "Release: ${musicDetails?.releaseDate?.split("T")?.get(0) ?: "N/A"}",
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                     )
@@ -200,7 +252,6 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
             }
 
             item {
-                // Genre
                 Text(
                     text = "Genre",
                     fontSize = 18.sp,
@@ -215,10 +266,9 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
                 )
             }
 
-            // Artist Profile Section
             item {
                 Text(
-                    text = "Profil de l'Artiste",
+                    text = "Artist Profile",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -241,36 +291,33 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
                         Column(
                             modifier = Modifier.padding(16.dp)
                         ) {
-                            // Artist Name
                             Text(
-                                text = "Nom: ${artistDetails?.artistName ?: "N/A"}",
+                                text = "Name: ${artistDetails?.artistName ?: "N/A"}",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onBackground
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            // Artist Genre
                             Text(
                                 text = "Genre: ${artistDetails?.primaryGenreName ?: "N/A"}",
                                 fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                             )
                         }
                     }
                 } else {
                     Text(
-                        text = "Chargement du profil de l'artiste...",
+                        text = "Loading artist profile...",
                         fontSize = 16.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                     )
                 }
             }
 
-            // Artist Albums Section
             if (artistAlbums.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Albums de l'Artiste",
+                        text = "Artist Albums",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -279,42 +326,71 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
 
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(artistAlbums) { album ->
                             Card(
                                 modifier = Modifier
-                                    .width(120.dp),
+                                    .width(120.dp)
+                                    .shadow(elevation = 1.dp, shape = RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        album.collectionId?.let { albumId ->
+                                            navController.navigate("albumDetail/$albumId")
+                                        }
+                                    },
                                 shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                             ) {
-                                Column(modifier = Modifier.padding(8.dp)) {
-                                    SubcomposeAsyncImage(
-                                        model = album.artworkUrl100?.replace("100x100", "300x300"),
-                                        contentDescription = "Image de ${album.collectionName}",
+                                Column(
+                                    modifier = Modifier.padding(6.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(100.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color.Gray),
-                                        contentScale = ContentScale.Crop
+                                            .height(140.dp)
                                     ) {
-                                        when (painter.state) {
-                                            is AsyncImagePainter.State.Loading -> CircularProgressIndicator()
-                                            is AsyncImagePainter.State.Error -> Text("Erreur")
-                                            else -> SubcomposeAsyncImageContent()
+                                        SubcomposeAsyncImage(
+                                            model = album.artworkUrl100?.replace("100x100", "300x300"),
+                                            contentDescription = "Artwork of ${album.collectionName}",
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(MaterialTheme.colorScheme.secondary),
+                                            contentScale = ContentScale.Crop
+                                        ) {
+                                            when (painter.state) {
+                                                is AsyncImagePainter.State.Loading -> CircularProgressIndicator(
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                is AsyncImagePainter.State.Error -> Text(
+                                                    "Error",
+                                                    color = MaterialTheme.colorScheme.onSecondary,
+                                                    fontSize = 12.sp
+                                                )
+                                                else -> SubcomposeAsyncImageContent()
+                                            }
                                         }
                                     }
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = album.collectionName ?: "N/A",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        maxLines = 2,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.padding(horizontal = 4.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Release: ${album.releaseDate?.split("T")?.get(0)?.substring(0, minOf(4, album.releaseDate?.split("T")?.get(0)?.length ?: 0)) ?: "N/A"}",
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -324,7 +400,6 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
             }
 
             item {
-                // Play Now Button
                 val playLink = musicDetails?.trackViewUrl?.takeIf { it.isNotBlank() }
                     ?: "https://www.google.com/search?q=${Uri.encode(musicDetails?.trackName)}+${Uri.encode(musicDetails?.artistName)}+song"
 
@@ -336,7 +411,7 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
                         } catch (e: Exception) {
                             Toast.makeText(
                                 context,
-                                "Impossible d'ouvrir le lien: ${e.message}",
+                                "Unable to open link: ${e.message}",
                                 Toast.LENGTH_LONG
                             ).show()
                         }
@@ -345,8 +420,8 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4A00E0),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -363,24 +438,18 @@ fun MusicDetailScreen(navController: NavHostController, musicId: String) {
                     )
                 }
             }
-
-            item {
-                // Back Button
-                OutlinedButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, Color(0xFF4A00E0)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Retour",
-                        fontSize = 16.sp,
-                        color = Color(0xFF4A00E0)
-                    )
-                }
-            }
         }
     }
+}
+
+// Helper function to share music details
+private fun shareMusic(context: Context, trackName: String, trackId: String) {
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Check out this song!")
+        putExtra(Intent.EXTRA_TEXT, "I'm listening to $trackName! Check it out: https://music.apple.com/us/song/$trackId")
+    }
+    context.startActivity(Intent.createChooser(shareIntent, "Share $trackName"))
 }
 
 // Data Classes for Music Details
@@ -391,10 +460,9 @@ data class iTunesResponse(
 
 @Serializable
 data class MusicDetails(
-    val wrapperType: String? = null, // 👈 Add this line
-
-    val trackId: Long? = null, // Made nullable to handle deserialization
-    val trackName: String? = null, // Made nullable to handle deserialization
+    val wrapperType: String? = null,
+    val trackId: Long? = null,
+    val trackName: String? = null,
     val artistName: String,
     val artistId: Int? = null,
     val collectionName: String? = null,
@@ -412,11 +480,12 @@ data class ArtistResponse(
 
 @Serializable
 data class ArtistOrAlbum(
-    val wrapperType: String, // "artist" or "collection" (for albums)
+    val wrapperType: String,
     val artistId: Int? = null,
     val artistName: String? = null,
     val primaryGenreName: String? = null,
     val collectionId: Int? = null,
     val collectionName: String? = null,
-    val artworkUrl100: String? = null
+    val artworkUrl100: String? = null,
+    val releaseDate: String? = null
 )

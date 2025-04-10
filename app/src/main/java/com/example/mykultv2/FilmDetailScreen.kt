@@ -1,9 +1,9 @@
 package com.example.mykultv2
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,8 +13,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,6 +50,7 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var isFavorited by remember { mutableStateOf(false) }
 
     LaunchedEffect(filmId) {
         scope.launch {
@@ -59,6 +63,17 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                     URL("https://api.themoviedb.org/3/movie/$filmId?api_key=2e8e56d097cbdfb2bc76d988a80ab8fe&language=fr-FR&append_to_response=credits,watch/providers").readText()
                 }
                 movieDetails = json.decodeFromString<MovieDetails>(detailsJson)
+
+                movieDetails?.let { details ->
+                    val movie = Movie(
+                        id = details.id,
+                        title = details.title,
+                        release_date = details.release_date ?: "N/A",
+                        poster_path = details.poster_path
+                    )
+                    RecentlyWatchedManager.addRecentlyWatchedMovie(movie)
+                    isFavorited = FavoritesManager.isMovieFavorited(movie)
+                }
             } catch (e: Exception) {
                 error = "Erreur lors du chargement des détails: ${e.message}"
             } finally {
@@ -74,25 +89,65 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Top Bar with Back Icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Default.ArrowBack,
                     contentDescription = "Retour",
                     modifier = Modifier
                         .size(32.dp)
-                        .clickable { navController.popBackStack() }
+                        .clickable { navController.popBackStack() },
+                    tint = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.width(16.dp))
+
                 Text(
                     text = "Détails du Film",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
                 )
+
+                Row {
+                    Icon(
+                        imageVector = if (isFavorited) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Favori",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable {
+                                movieDetails?.let { details ->
+                                    val movie = Movie(
+                                        id = details.id,
+                                        title = details.title,
+                                        release_date = details.release_date ?: "N/A",
+                                        poster_path = details.poster_path
+                                    )
+                                    scope.launch {
+                                        FavoritesManager.toggleFavoriteMovie(movie)
+                                        isFavorited = FavoritesManager.isMovieFavorited(movie)
+                                    }
+                                }
+                            },
+                        tint = if (isFavorited) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Partager",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable {
+                                movieDetails?.let { details ->
+                                    shareMovie(context, details.title, details.id)
+                                }
+                            },
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
         }
 
@@ -100,7 +155,7 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
             when {
                 isLoading -> {
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 error != null -> {
@@ -110,12 +165,11 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                     ) {
                         Text(
                             text = error ?: "Erreur inconnue",
-                            color = Color.Red
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
                 movieDetails != null -> {
-                    // Poster Image
                     SubcomposeAsyncImage(
                         model = "https://image.tmdb.org/t/p/w500${movieDetails?.poster_path}",
                         contentDescription = "Affiche de ${movieDetails?.title}",
@@ -123,12 +177,12 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                             .fillMaxWidth()
                             .height(300.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color.Gray),
+                            .background(MaterialTheme.colorScheme.secondary),
                         contentScale = ContentScale.Crop
                     ) {
                         when (painter.state) {
-                            is AsyncImagePainter.State.Loading -> CircularProgressIndicator()
-                            is AsyncImagePainter.State.Error -> Text("Erreur de chargement de l'image")
+                            is AsyncImagePainter.State.Loading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            is AsyncImagePainter.State.Error -> Text("Erreur de chargement de l'image", color = MaterialTheme.colorScheme.onSecondary)
                             else -> SubcomposeAsyncImageContent()
                         }
                     }
@@ -138,7 +192,6 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
 
         if (movieDetails != null) {
             item {
-                // Title
                 Text(
                     text = movieDetails?.title ?: "",
                     fontSize = 24.sp,
@@ -148,7 +201,6 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
             }
 
             item {
-                // Release Date and Duration
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -167,7 +219,6 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
             }
 
             item {
-                // Genres
                 Text(
                     text = "Genres",
                     fontSize = 18.sp,
@@ -183,7 +234,6 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
             }
 
             item {
-                // Actors/Cast
                 Text(
                     text = "Acteurs principaux",
                     fontSize = 18.sp,
@@ -214,11 +264,11 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                                 modifier = Modifier
                                     .size(80.dp)
                                     .clip(CircleShape)
-                                    .background(Color.Gray),
+                                    .background(MaterialTheme.colorScheme.secondary),
                                 contentScale = ContentScale.Crop
                             ) {
                                 when (painter.state) {
-                                    is AsyncImagePainter.State.Error -> Text("Pas d'image")
+                                    is AsyncImagePainter.State.Error -> Text("Pas d'image", color = MaterialTheme.colorScheme.onSecondary)
                                     else -> SubcomposeAsyncImageContent()
                                 }
                             }
@@ -226,7 +276,8 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                                 text = actor.name,
                                 fontSize = 14.sp,
                                 modifier = Modifier.padding(top = 4.dp),
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
@@ -234,7 +285,6 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
             }
 
             item {
-                // Description
                 Text(
                     text = "Description",
                     fontSize = 18.sp,
@@ -252,7 +302,6 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
             }
 
             item {
-                // Production Companies
                 Text(
                     text = "Sociétés de production",
                     fontSize = 18.sp,
@@ -268,7 +317,6 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
             }
 
             item {
-                // Budget
                 Text(
                     text = "Budget",
                     fontSize = 18.sp,
@@ -290,8 +338,7 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
             }
 
             item {
-                // Watch Link
-                val userRegion = Locale.getDefault().country // e.g., "FR", "US"
+                val userRegion = Locale.getDefault().country
                 val watchLink = movieDetails?.let { details ->
                     if (details.watch_providers?.results?.containsKey(userRegion) == true) {
                         details.watch_providers.results[userRegion]?.link?.takeIf { it.isNotBlank() }
@@ -301,7 +348,6 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                     ?: "https://www.justwatch.com/fr/recherche?q=${Uri.encode(details.title)}"
                 } ?: "https://www.justwatch.com/fr/recherche?q="
 
-                // Debug the watch link
                 println("Watch Link: $watchLink")
 
                 Button(
@@ -321,8 +367,8 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4A00E0),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -339,24 +385,18 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                     )
                 }
             }
-
-            item {
-                // Back Button
-                OutlinedButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, Color(0xFF4A00E0)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Retour",
-                        fontSize = 16.sp,
-                        color = Color(0xFF4A00E0)
-                    )
-                }
-            }
         }
     }
+}
+
+// Helper function to share movie details
+private fun shareMovie(context: Context, title: String, movieId: Int) {
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Check out this movie!")
+        putExtra(Intent.EXTRA_TEXT, "I'm watching $title! Check it out: https://www.themoviedb.org/movie/$movieId")
+    }
+    context.startActivity(Intent.createChooser(shareIntent, "Share $title"))
 }
 
 // Updated Data Classes for Movie Details
@@ -375,6 +415,8 @@ data class MovieDetails(
     val credits: Credits? = null,
     val watch_providers: WatchProviders? = null
 )
+
+
 
 @Serializable
 data class ProductionCompany(
@@ -409,7 +451,7 @@ data class Credits(
 
 @Serializable
 data class CastMember(
-    val id: Int? = null, // Added id field for navigation
+    val id: Int? = null,
     val name: String,
     val profile_path: String? = null
 )

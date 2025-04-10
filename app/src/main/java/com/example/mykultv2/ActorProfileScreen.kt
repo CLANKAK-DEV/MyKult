@@ -9,9 +9,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,24 +49,21 @@ fun ActorProfileScreen(navController: NavHostController, actorId: String) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Fetch actor details and their movie credits
     LaunchedEffect(actorId) {
         scope.launch {
             try {
-                // Fetch actor details
                 val personJson = withContext(Dispatchers.IO) {
-                    URL("https://api.themoviedb.org/3/person/$actorId?api_key=2e8e56d097cbdfb2bc76d988a80ab8fe&language=fr-FR").readText()
+                    URL("https://api.themoviedb.org/3/person/$actorId?api_key=2e8e56d097cbdfb2bc76d988a80ab8fe&language=en-US").readText()
                 }
                 actorDetails = json.decodeFromString<PersonDetails>(personJson)
 
-                // Fetch actor's movie credits
                 val creditsJson = withContext(Dispatchers.IO) {
-                    URL("https://api.themoviedb.org/3/person/$actorId/movie_credits?api_key=2e8e56d097cbdfb2bc76d988a80ab8fe&language=fr-FR").readText()
+                    URL("https://api.themoviedb.org/3/person/$actorId/movie_credits?api_key=2e8e56d097cbdfb2bc76d988a80ab8fe&language=en-US").readText()
                 }
                 val creditsResponse = json.decodeFromString<ActorCreditsResponse>(creditsJson)
                 actorMovies = creditsResponse.cast ?: emptyList()
             } catch (e: Exception) {
-                error = "Erreur lors du chargement du profil de l'acteur: ${e.message}"
+                error = "Error loading actor profile: ${e.message}"
             } finally {
                 isLoading = false
             }
@@ -72,25 +73,26 @@ fun ActorProfileScreen(navController: NavHostController, actorId: String) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .background(MaterialTheme.colorScheme.background),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Top Bar with Back Icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Retour",
+                    imageVector = Icons.Outlined.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier
                         .size(32.dp)
                         .clickable { navController.popBackStack() }
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = "Profil de l'Acteur",
+                    text = "Actor Profile",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -102,7 +104,7 @@ fun ActorProfileScreen(navController: NavHostController, actorId: String) {
             when {
                 isLoading -> {
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 error != null -> {
@@ -111,18 +113,17 @@ fun ActorProfileScreen(navController: NavHostController, actorId: String) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = error ?: "Erreur inconnue",
-                            color = Color.Red
+                            text = error ?: "Unknown error",
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
                 actorDetails != null -> {
-                    // Actor Name
                     Column(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "Nom: ${actorDetails?.name ?: "N/A"}",
+                            text = "Name: ${actorDetails?.name ?: "N/A"}",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground,
@@ -134,11 +135,10 @@ fun ActorProfileScreen(navController: NavHostController, actorId: String) {
         }
 
         if (actorDetails != null) {
-            // All Films Section
             if (actorMovies.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Films de l'Acteur",
+                        text = "Movies by Actor",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -154,8 +154,9 @@ fun ActorProfileScreen(navController: NavHostController, actorId: String) {
                                 navController.navigate("filmDetail/${movie.id}")
                             },
                         shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
                     ) {
                         Row(
                             modifier = Modifier.padding(8.dp),
@@ -163,36 +164,83 @@ fun ActorProfileScreen(navController: NavHostController, actorId: String) {
                         ) {
                             SubcomposeAsyncImage(
                                 model = "https://image.tmdb.org/t/p/w500${movie.poster_path}",
-                                contentDescription = "Affiche de ${movie.title}",
+                                contentDescription = "Poster of ${movie.title}",
                                 modifier = Modifier
                                     .size(60.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.Gray),
+                                    .background(MaterialTheme.colorScheme.secondary),
                                 contentScale = ContentScale.Crop
                             ) {
                                 when (painter.state) {
-                                    is AsyncImagePainter.State.Loading -> CircularProgressIndicator()
-                                    is AsyncImagePainter.State.Error -> Text("Erreur")
+                                    is AsyncImagePainter.State.Loading -> CircularProgressIndicator(
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    is AsyncImagePainter.State.Error -> Text(
+                                        "Error",
+                                        color = MaterialTheme.colorScheme.onSecondary
+                                    )
                                     else -> SubcomposeAsyncImageContent()
                                 }
                             }
                             Spacer(modifier = Modifier.width(16.dp))
-                            Column {
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text(
                                     text = movie.title ?: "N/A",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Sortie: ${movie.release_date ?: "N/A"}",
+                                    text = "Release: ${movie.release_date ?: "N/A"}",
                                     fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), shape = CircleShape)
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        scope.launch {
+                                            val movieToFavorite = Movie(
+                                                id = movie.id,
+                                                title = movie.title ?: "N/A",
+                                                release_date = movie.release_date ?: "N/A",
+                                                poster_path = movie.poster_path
+                                            )
+                                            FavoritesManager.toggleFavoriteMovie(movieToFavorite)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (FavoritesManager.isMovieFavorited(
+                                            Movie(
+                                                id = movie.id,
+                                                title = movie.title ?: "N/A",
+                                                release_date = movie.release_date ?: "N/A",
+                                                poster_path = movie.poster_path
+                                            )
+                                        )) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = "Favorite",
+                                    tint = if (FavoritesManager.isMovieFavorited(
+                                            Movie(
+                                                id = movie.id,
+                                                title = movie.title ?: "N/A",
+                                                release_date = movie.release_date ?: "N/A",
+                                                poster_path = movie.poster_path
+                                            )
+                                        )) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -201,17 +249,19 @@ fun ActorProfileScreen(navController: NavHostController, actorId: String) {
             }
 
             item {
-                // Back Button
                 OutlinedButton(
                     onClick = { navController.popBackStack() },
                     modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, Color(0xFF4A00E0)),
-                    shape = RoundedCornerShape(12.dp)
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Text(
-                        text = "Retour",
+                        text = "Back",
                         fontSize = 16.sp,
-                        color = Color(0xFF4A00E0)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }

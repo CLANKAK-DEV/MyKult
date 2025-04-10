@@ -1,9 +1,9 @@
 package com.example.mykultv2
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,7 +11,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -42,6 +46,7 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var isFavorited by remember { mutableStateOf(false) }
 
     LaunchedEffect(bookId) {
         scope.launch {
@@ -50,6 +55,18 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
                     URL("https://www.googleapis.com/books/v1/volumes/$bookId").readText()
                 }
                 bookDetails = json.decodeFromString<BookDetails>(detailsJson)
+
+                bookDetails?.let { details ->
+                    val book = Book(
+                        id = details.id,
+                        title = details.volumeInfo.title ?: "Unknown Title",
+                        author = details.volumeInfo.authors?.joinToString(", ") ?: "Unknown Author",
+                        imageUrl = details.volumeInfo.imageLinks?.thumbnail?.replace("http://", "https://") ?: "",
+                        publishedDate = details.volumeInfo.publishedDate ?: "N/A"
+                    )
+                    RecentlyWatchedManager.addRecentlyWatchedBook(book)
+                    isFavorited = FavoritesManager.isBookFavorited(book)
+                }
             } catch (e: Exception) {
                 error = "Erreur lors du chargement des détails: ${e.message}"
             } finally {
@@ -65,25 +82,66 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Top Bar with Back Icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Default.ArrowBack,
                     contentDescription = "Retour",
                     modifier = Modifier
                         .size(32.dp)
-                        .clickable { navController.popBackStack() }
+                        .clickable { navController.popBackStack() },
+                    tint = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.width(16.dp))
+
                 Text(
                     text = "Détails du Livre",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
                 )
+
+                Row {
+                    Icon(
+                        imageVector = if (isFavorited) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Favori",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable {
+                                bookDetails?.let { details ->
+                                    val book = Book(
+                                        id = details.id,
+                                        title = details.volumeInfo.title ?: "Unknown Title",
+                                        author = details.volumeInfo.authors?.joinToString(", ") ?: "Unknown Author",
+                                        imageUrl = details.volumeInfo.imageLinks?.thumbnail?.replace("http://", "https://") ?: "",
+                                        publishedDate = details.volumeInfo.publishedDate ?: "N/A"
+                                    )
+                                    scope.launch {
+                                        FavoritesManager.toggleFavoriteBook(book)
+                                        isFavorited = FavoritesManager.isBookFavorited(book)
+                                    }
+                                }
+                            },
+                        tint = if (isFavorited) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Partager",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable {
+                                bookDetails?.let { details ->
+                                    shareBook(context, details.volumeInfo.title ?: "Unknown Title", details.id)
+                                }
+                            },
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
         }
 
@@ -91,7 +149,7 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
             when {
                 isLoading -> {
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 error != null -> {
@@ -101,12 +159,11 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
                     ) {
                         Text(
                             text = error ?: "Erreur inconnue",
-                            color = Color.Red
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
                 bookDetails != null -> {
-                    // Cover Image
                     SubcomposeAsyncImage(
                         model = bookDetails?.volumeInfo?.imageLinks?.thumbnail?.replace("http://", "https://"),
                         contentDescription = "Couverture de ${bookDetails?.volumeInfo?.title}",
@@ -114,12 +171,12 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
                             .fillMaxWidth()
                             .height(300.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color.Gray),
+                            .background(MaterialTheme.colorScheme.secondary),
                         contentScale = ContentScale.Crop
                     ) {
                         when (painter.state) {
-                            is AsyncImagePainter.State.Loading -> CircularProgressIndicator()
-                            is AsyncImagePainter.State.Error -> Text("Erreur de chargement de l'image")
+                            is AsyncImagePainter.State.Loading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            is AsyncImagePainter.State.Error -> Text("Erreur de chargement de l'image", color = MaterialTheme.colorScheme.onSecondary)
                             else -> SubcomposeAsyncImageContent()
                         }
                     }
@@ -129,7 +186,6 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
 
         if (bookDetails != null) {
             item {
-                // Title
                 Text(
                     text = bookDetails?.volumeInfo?.title ?: "",
                     fontSize = 24.sp,
@@ -139,7 +195,6 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
             }
 
             item {
-                // Authors
                 Text(
                     text = "Auteurs",
                     fontSize = 18.sp,
@@ -154,7 +209,6 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
                 )
             }
 
-            // Profil des Auteurs Section
             item {
                 Text(
                     text = "Profil des Auteurs",
@@ -168,7 +222,6 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // Navigate to AuthorProfileScreen with the first author's name
                             bookDetails?.volumeInfo?.authors?.firstOrNull()?.let { author ->
                                 navController.navigate("authorProfile/${Uri.encode(author)}")
                             }
@@ -180,19 +233,17 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        // Authors' Names
                         Text(
                             text = "Nom: ${bookDetails?.volumeInfo?.authors?.joinToString(", ") ?: "N/A"}",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
             }
 
             item {
-                // Publication Date and Page Count
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -211,7 +262,6 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
             }
 
             item {
-                // Publisher
                 Text(
                     text = "Éditeur",
                     fontSize = 18.sp,
@@ -227,7 +277,6 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
             }
 
             item {
-                // Description
                 Text(
                     text = "Description",
                     fontSize = 18.sp,
@@ -245,7 +294,6 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
             }
 
             item {
-                // Read Now Button
                 val readLink = bookDetails?.volumeInfo?.previewLink?.takeIf { it.isNotBlank() }
                     ?: bookDetails?.volumeInfo?.infoLink?.takeIf { it.isNotBlank() }
                     ?: "https://www.google.com/search?q=${Uri.encode(bookDetails?.volumeInfo?.title)}+book"
@@ -267,8 +315,8 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4A00E0),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -285,27 +333,20 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
                     )
                 }
             }
-
-            item {
-                // Back Button
-                OutlinedButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, Color(0xFF4A00E0)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Retour",
-                        fontSize = 16.sp,
-                        color = Color(0xFF4A00E0)
-                    )
-                }
-            }
         }
     }
 }
 
-// Data Classes for Book Details
+// Helper function to share book details
+private fun shareBook(context: Context, title: String, bookId: String) {
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Check out this book!")
+        putExtra(Intent.EXTRA_TEXT, "I'm reading $title! Check it out: https://books.google.com/books?id=$bookId")
+    }
+    context.startActivity(Intent.createChooser(shareIntent, "Share $title"))
+}
+
 @Serializable
 data class BookDetails(
     val id: String,

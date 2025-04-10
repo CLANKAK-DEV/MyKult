@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("kotlin-kapt")
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.23"
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -57,6 +58,11 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.firebase.auth)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.firebase.firestore)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -72,7 +78,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
     implementation("androidx.compose.animation:animation:1.6.0") // For animations
-
+    implementation ("androidx.compose.material:material:1.5.0")
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
@@ -116,15 +122,12 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.compose.material3:material3:1.2.0")
 
-    // Coil for image loading in Jetpack Compose
-    implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Kotlinx Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     // OkHttp for HTTP requests
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    // Coil for image loading in Jetpack Compose
-    implementation("io.coil-kt:coil-compose:2.7.0")
+
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 
     implementation ("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
@@ -134,11 +137,32 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     // OkHttp for HTTP requests
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    // Coil for image loading in Jetpack Compose
-    implementation("io.coil-kt:coil-compose:2.7.0")
+
     // Jetpack Compose Pager (already included in Compose Foundation, but ensure you have the latest version)
     implementation("androidx.compose.foundation:foundation:1.7.0") // Ensure you have a recent version
 
     implementation ("androidx.navigation:navigation-compose:2.7.7")
+
+    implementation ("androidx.compose.foundation:foundation:1.5.0")
+    implementation ("androidx.compose.ui:ui:1.5.0")
+
+
+
+    // Google Sign-In
+    implementation ("com.google.android.gms:play-services-auth:20.7.0")
+
+    // Room for local database
+    implementation ("androidx.room:room-runtime:2.6.0")
+    implementation ("androidx.room:room-ktx:2.6.0")
+    kapt ("androidx.room:room-compiler:2.6.0")
+
+    // Lifecycle and ViewModel (if needed for state management)
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
+    implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
+
+    // Core AndroidX libraries
+    implementation ("androidx.core:core-ktx:1.12.0")
+    implementation ("androidx.appcompat:appcompat:1.6.1")
+
 }
 
