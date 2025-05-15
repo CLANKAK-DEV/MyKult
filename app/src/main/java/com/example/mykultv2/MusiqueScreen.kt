@@ -1,4 +1,4 @@
-package com.example.mykultv2
+package com.mykult.app
 
 import android.util.Log
 import androidx.compose.foundation.BorderStroke

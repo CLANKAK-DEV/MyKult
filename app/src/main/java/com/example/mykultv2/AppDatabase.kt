@@ -1,4 +1,4 @@
-package com.example.mykultv2
+package com.mykult.app
 
 import android.annotation.SuppressLint
 import android.content.Context

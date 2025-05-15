@@ -1,4 +1,4 @@
-package com.example.mykultv2
+package com.mykult.app
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf

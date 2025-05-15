@@ -1,4 +1,4 @@
-package com.example.mykultv2
+package com.mykult.app
 
 import android.content.Context
 import android.content.Intent

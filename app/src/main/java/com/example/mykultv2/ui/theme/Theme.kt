@@ -1,4 +1,4 @@
-package com.example.mykultv2.ui.theme
+package com.mykult.app.ui.theme
 
 import android.app.Activity
 import android.os.Build

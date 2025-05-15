@@ -1,4 +1,4 @@
-package com.example.mykultv2
+package com.mykult.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

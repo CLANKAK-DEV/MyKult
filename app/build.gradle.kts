@@ -8,26 +8,29 @@ plugins {
 }
 
 android {
-    namespace = "com.example.mykultv2"
+    namespace = "com.mykult.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.mykultv2"
+        applicationId = "com.mykult.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
     }
 

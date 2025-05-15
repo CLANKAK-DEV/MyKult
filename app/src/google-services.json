@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:256080357991:android:b8c7e2dea163b2a97102c2",
         "android_client_info": {
-          "package_name": "com.example.mykultv2"
+          "package_name": "com.mykult.app"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "256080357991-qnn4fhg90nh8e652tsrio64h529l6584.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.mykultv2",
+            "package_name": "com.mykult.app",
             "certificate_hash": "c5135d6e1dcccebae8ef1100658aa74856c3219b"
           }
         },

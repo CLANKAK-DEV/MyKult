@@ -1,4 +1,4 @@
-package com.example.mykultv2
+package com.mykult.app
 
 import android.content.Context
 import android.content.Intent
@@ -97,7 +97,7 @@ fun BookDetailScreen(navController: NavHostController, bookId: String) {
                 )
 
                 Text(
-                    text = "Détails du Livre",
+                    text = "Books Details",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,

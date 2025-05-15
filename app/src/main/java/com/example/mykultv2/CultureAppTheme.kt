@@ -1,4 +1,4 @@
-package com.example.mykultv2
+package com.mykult.app
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme

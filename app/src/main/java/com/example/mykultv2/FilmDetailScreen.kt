@@ -1,4 +1,4 @@
-package com.example.mykultv2
+package com.mykult.app
 
 import android.content.Context
 import android.content.Intent
@@ -102,9 +102,8 @@ fun FilmDetailScreen(navController: NavHostController, filmId: String) {
                         .clickable { navController.popBackStack() },
                     tint = MaterialTheme.colorScheme.onBackground
                 )
-
                 Text(
-                    text = "Détails du Film",
+                    text = "Movie Details",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,

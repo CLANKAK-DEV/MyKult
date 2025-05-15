@@ -1,4 +1,4 @@
-package com.example.mykultv2
+package com.mykult.app
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
