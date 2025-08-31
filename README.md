@@ -92,7 +92,7 @@ Contributions are welcome! 🎉
 
 ## 🐛 Issues  
 
-If you find a bug or have a feature request, please open an [Issue](https://github.com/your-username/mykult/issues).  
+If you find a bug or have a feature request, please open an [Issue](https://github.com/CLANKAK-DEV/mykult/issues).  
 
 ---
 
