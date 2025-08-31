@@ -72,7 +72,7 @@ fun HomeScreen(navController: NavHostController) {
             try {
                 val randomPage = Random.nextInt(1, 101)
                 val moviesJson = withContext(Dispatchers.IO) {
-                    URL("https://api.themoviedb.org/3/movie/popular?api_key=2e8e56d097cbdfb2bc76d988a80ab8fe&language=en-US&page=$randomPage").readText()
+                    URL("").readText()
                 }
                 val moviesResponse = json.decodeFromString<TMDbResponse>(moviesJson)
                 popularMovies = moviesResponse.results.take(5)
@@ -83,7 +83,7 @@ fun HomeScreen(navController: NavHostController) {
             try {
                 val randomKeyword = listOf("fiction", "nonfiction", "mystery", "fantasy", "biography").random()
                 val booksJson = withContext(Dispatchers.IO) {
-                    URL("https://www.googleapis.com/books/v1/volumes?q=bestsellers+$randomKeyword&maxResults=5&langRestrict=en").readText()
+                    URL("").readText()
                 }
                 val jsonObject = Json.parseToJsonElement(booksJson).jsonObject
                 val items = jsonObject["items"]?.jsonArray ?: emptyList()
@@ -112,7 +112,7 @@ fun HomeScreen(navController: NavHostController) {
             try {
                 val randomGenre = listOf("pop", "rock", "jazz", "hiphop", "classical").random()
                 val musicJson = withContext(Dispatchers.IO) {
-                    URL("https://itunes.apple.com/search?term=$randomGenre&entity=song&limit=5").readText()
+                    URL("").readText()
                 }
                 val jsonObject = Json.parseToJsonElement(musicJson).jsonObject
                 val items = jsonObject["results"]?.jsonArray ?: emptyList()
